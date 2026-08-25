@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR System — ဝန်ထမ်း စီမံခန့်ခွဲမှုစနစ်</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#14213D; --ink-soft:#1F2E52; --brass:#C89B3C; --brass-soft:#E8D6A8;
+    --parchment:#FAF8F4; --paper:#FFFFFF; --sage:#4C7A5C; --rust:#B54834;
+    --slate:#6B7280; --line:#E4DFD3; --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Noto Sans Myanmar', sans-serif; background:var(--parchment); color:var(--ink); min-height:100vh;}
+  .mono{font-family:'JetBrains Mono', monospace;}
+  .hidden{display:none !important;}
+
+  /* ---------------- Shared top bar ---------------- */
+  .topbar{position:sticky; top:0; z-index:50; background:var(--ink); padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+  .topbar .brand{color:var(--parchment); font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:6px;}
+  .role-tabs{display:flex; border:1px solid rgba(255,255,255,.25); border-radius:100px; overflow:hidden;}
+  .role-tabs button{all:unset; cursor:pointer; padding:8px 16px; font-size:.8rem; font-weight:700; color:rgba(250,248,244,.7); font-family:'Noto Sans Myanmar', sans-serif;}
+  .role-tabs button.active{background:var(--brass); color:var(--ink);}
+  .lang-toggle{display:flex; border:1px solid rgba(255,255,255,.25); border-radius:100px; overflow:hidden;}
+  .lang-toggle button{all:unset; cursor:pointer; padding:8px 14px; font-size:.75rem; font-weight:700; color:rgba(250,248,244,.7);}
+  .lang-toggle button.active{background:var(--parchment); color:var(--ink);}
+
+  /* ================= EMPLOYEE SECTION ================= */
+  #employeeSection{padding:24px 16px 60px;}
+  .wrap{max-width:920px; margin:0 auto; display:grid; gap:22px;}
+
+  .reg-overlay{max-width:520px; margin:40px auto; background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:34px 30px;}
+  .reg-overlay h2{font-size:1.15rem; font-weight:700; margin-bottom:6px;}
+  .reg-overlay .sub{font-size:.83rem; color:var(--slate); margin-bottom:22px;}
+  .reg-overlay label.fld{display:block; font-size:.75rem; color:var(--slate); margin-bottom:6px; margin-top:14px;}
+  .reg-overlay input, .reg-overlay select{width:100%; border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-family:'Noto Sans Myanmar', sans-serif; font-size:.9rem; color:var(--ink);}
+  .reg-overlay button.btn-solid{width:100%; margin-top:22px; padding:13px; font-size:.92rem;}
+  .toggle-mode{text-align:center; margin-top:16px; font-size:.8rem; color:var(--slate);}
+  .toggle-mode button{all:unset; cursor:pointer; color:var(--ink); font-weight:700; text-decoration:underline;}
+  .company-pill{display:inline-flex; align-items:center; gap:8px; background:var(--parchment); border:1px solid var(--line); border-radius:100px; padding:6px 14px; font-size:.78rem; margin-bottom:18px;}
+  .company-pill button{all:unset; cursor:pointer; color:var(--rust); font-weight:700; text-decoration:underline; font-size:.75rem;}
+
+  .stamp-card{background:var(--ink); color:var(--parchment); border-radius:20px; padding:36px 28px; position:relative; overflow:hidden; text-align:center;}
+  .stamp-card::before{content:""; position:absolute; inset:0; background:radial-gradient(circle at 85% -10%, rgba(200,155,60,.28), transparent 45%), radial-gradient(circle at -10% 110%, rgba(200,155,60,.16), transparent 45%);}
+  .stamp-card .company-name{position:relative; font-size:.78rem; color:var(--brass-soft); letter-spacing:.5px; text-transform:uppercase; margin-bottom:4px;}
+  .stamp-card .clock{font-family:'JetBrains Mono', monospace; font-size:clamp(2.4rem, 8vw, 3.6rem); font-weight:700; letter-spacing:1px; position:relative;}
+  .stamp-card .date{position:relative; margin-top:6px; color:var(--brass-soft); font-size:.95rem;}
+
+  .who-row{position:relative; margin-top:22px; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;}
+  .who-name{font-size:1rem; font-weight:700;}
+  .who-position{font-size:.78rem; color:var(--brass-soft);}
+  .switch-link{font-size:.75rem; color:var(--brass-soft); text-decoration:underline; cursor:pointer; background:none; border:none;}
+
+  .stamp-actions{position:relative; margin-top:24px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap;}
+  .stamp-btn{font-family:'Noto Sans Myanmar', sans-serif; font-weight:700; font-size:1rem; padding:16px 34px; border-radius:100px; border:2px solid transparent; cursor:pointer; transition:transform .15s ease, opacity .15s ease;}
+  .stamp-btn:active{transform:scale(.97);}
+  .stamp-btn:disabled{opacity:.35; cursor:not-allowed;}
+  .btn-in{background:var(--brass); color:var(--ink);}
+  .btn-out{background:transparent; color:var(--parchment); border-color:rgba(255,255,255,.4);}
+
+  .status-line{position:relative; margin-top:20px; font-size:.85rem; color:var(--brass-soft); min-height:1.2em;}
+  .schedule-note{position:relative; margin-top:8px; font-size:.72rem; color:rgba(250,248,244,.5);}
+
+  .card{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:22px 22px 20px;}
+  .card h2{font-size:1rem; font-weight:700; margin-bottom:4px;}
+  .card h3{font-size:.95rem; font-weight:700; margin-bottom:14px;}
+  .card .sub{font-size:.78rem; color:var(--slate); margin-bottom:16px;}
+  .card .hint{font-size:.78rem; color:var(--slate); margin-bottom:16px; margin-top:-6px;}
+
+  .today-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  .today-box{border:1px dashed var(--line); border-radius:10px; padding:14px; text-align:center;}
+  .today-box .lbl{font-size:.7rem; color:var(--slate); text-transform:uppercase; letter-spacing:.5px;}
+  .today-box .val{font-family:'JetBrains Mono', monospace; font-size:1.25rem; font-weight:700; margin-top:6px; color:var(--ink);}
+  .today-box .val.empty{color:var(--line); font-weight:500;}
+  .today-box .val.warn{color:var(--rust);}
+  .today-box .val.good{color:var(--sage);}
+
+  textarea{width:100%; min-height:80px; resize:vertical; border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-family:'Noto Sans Myanmar', sans-serif; font-size:.9rem; color:var(--ink);}
+  .row{display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:flex-start;}
+  input#hoursInput, input#otHours{width:110px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-family:'JetBrains Mono', monospace; font-size:.85rem;}
+  .btn-solid{background:var(--ink); color:var(--parchment); border:none; border-radius:10px; padding:10px 20px; font-family:'Noto Sans Myanmar', sans-serif; font-weight:600; font-size:.85rem; cursor:pointer;}
+  .btn-solid:hover{background:var(--ink-soft);}
+  .btn-solid.ot{background:var(--brass); color:var(--ink);}
+
+  ul.log-list{list-style:none; margin-top:16px; display:grid; gap:8px;}
+  ul.log-list li{border-left:3px solid var(--brass); background:var(--parchment); padding:10px 12px; border-radius:0 8px 8px 0; font-size:.85rem;}
+  ul.log-list li .meta{font-size:.7rem; color:var(--slate); margin-top:3px; font-family:'JetBrains Mono', monospace;}
+
+  .divider{border-top:1px dashed var(--line); margin:20px 0 16px;}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  select, input[type=date]{width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-family:'Noto Sans Myanmar', sans-serif; font-size:.85rem; color:var(--ink);}
+  label.fld{display:block; font-size:.72rem; color:var(--slate); margin-bottom:5px;}
+
+  .leave-list{margin-top:16px; display:grid; gap:8px;}
+  .leave-item{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; background:var(--parchment); font-size:.82rem; flex-wrap:wrap;}
+  .badge{font-size:.68rem; font-weight:700; padding:3px 10px; border-radius:100px; text-transform:uppercase; letter-spacing:.4px;}
+  .badge.pending{background:#F3E6C9; color:#8A6416;}
+  .badge.approved{background:#DCEAE0; color:var(--sage);}
+  .badge.rejected{background:#F3DAD3; color:var(--rust);}
+  .badge.present{background:#DCEAE0; color:var(--sage);}
+  .badge.late{background:#F3E6C9; color:#8A6416;}
+  .badge.absent{background:#F3DAD3; color:var(--rust);}
+  .badge.on_leave{background:#E4E0F3; color:#5B4C9E;}
+
+  .balance-note{font-size:.78rem; color:var(--slate); padding:10px 12px; background:var(--parchment); border-radius:10px; width:100%;}
+  .balance-note.warn{color:var(--rust); font-weight:600;}
+  .balance-note.good{color:var(--sage);}
+
+  @media(max-width:520px){
+    .today-grid{grid-template-columns:1fr;}
+    .grid2{grid-template-columns:1fr;}
+  }
+
+  /* ================= ADMIN SECTION ================= */
+  .gate-wrap{min-height:calc(100vh - 54px); display:flex; align-items:center; justify-content:center; padding:24px;}
+  .gate-card{max-width:460px; width:100%; background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:34px 30px;}
+  .gate-card h1{font-size:1.2rem; font-weight:700; margin-bottom:4px;}
+  .gate-card .sub{font-size:.82rem; color:var(--slate); margin-bottom:20px;}
+  .gate-tabs{display:flex; border:1px solid var(--line); border-radius:100px; overflow:hidden; margin-bottom:22px;}
+  .gate-tabs button{all:unset; flex:1; text-align:center; cursor:pointer; padding:10px; font-size:.82rem; font-weight:700; color:var(--slate);}
+  .gate-tabs button.active{background:var(--ink); color:var(--parchment);}
+  .gate-card label.fld{display:block; font-size:.75rem; color:var(--slate); margin-bottom:6px; margin-top:14px;}
+  .gate-card input{width:100%; border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-family:'Noto Sans Myanmar', sans-serif; font-size:.9rem; color:var(--ink);}
+  .gate-card button.btn-solid{width:100%; margin-top:22px; padding:13px; font-size:.92rem; background:var(--ink); color:var(--parchment); border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:'Noto Sans Myanmar', sans-serif;}
+  .gate-card button.btn-solid:hover{background:var(--ink-soft);}
+  .gate-hint{font-size:.75rem; color:var(--slate); margin-top:14px; text-align:center;}
+
+  .shell{display:flex; min-height:calc(100vh - 54px);}
+  nav.side{width:230px; background:var(--ink); color:var(--parchment); padding:26px 16px; display:flex; flex-direction:column; gap:4px; flex-shrink:0;}
+  nav.side .sub{font-size:.7rem; color:var(--brass-soft); margin-bottom:18px;}
+  nav.side button.nav-btn{all:unset; cursor:pointer; padding:11px 14px; border-radius:10px; font-size:.85rem; color:rgba(250,248,244,.75); transition:background .15s;}
+  nav.side button.nav-btn:hover{background:rgba(255,255,255,.06); color:var(--parchment);}
+  nav.side button.nav-btn.active{background:var(--brass); color:var(--ink); font-weight:700;}
+  nav.side button.back{margin-top:auto; font-size:.75rem; color:var(--brass-soft); padding:11px 14px; background:none; border:none; cursor:pointer; font-family:'Noto Sans Myanmar', sans-serif; text-align:left;}
+
+  main{flex:1; padding:32px 36px; max-width:1150px;}
+  main h2{font-size:1.3rem; font-weight:700; margin-bottom:4px;}
+  main .sub{font-size:.82rem; color:var(--slate); margin-bottom:22px;}
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;}
+  .stat{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:18px;}
+  .stat .n{font-family:'JetBrains Mono', monospace; font-size:1.7rem; font-weight:700;}
+  .stat .l{font-size:.75rem; color:var(--slate); margin-top:2px;}
+
+  table{width:100%; border-collapse:collapse; font-size:.85rem;}
+  th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.4px; color:var(--slate); padding:8px 10px; border-bottom:1px solid var(--line);}
+  td{padding:10px 10px; border-bottom:1px solid var(--line);}
+  tr:last-child td{border-bottom:none;}
+  td.mono, th.mono{font-family:'JetBrains Mono', monospace; font-size:.8rem;}
+  .ot-tag{font-family:'JetBrains Mono', monospace; font-size:.78rem; color:var(--brass); font-weight:700;}
+
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;}
+  .btn{background:var(--ink); color:var(--parchment); border:none; border-radius:10px; padding:10px 20px; font-weight:600; font-size:.85rem; cursor:pointer; font-family:'Noto Sans Myanmar', sans-serif;}
+  .btn:hover{background:var(--ink-soft);}
+  .btn.ghost{background:transparent; color:var(--ink); border:1px solid var(--line);}
+  .btn.small{padding:6px 14px; font-size:.75rem; border-radius:8px;}
+  .btn.approve{background:var(--sage); color:#fff;}
+  .btn.reject{background:var(--rust); color:#fff;}
+  .actions{display:flex; gap:8px;}
+
+  .pos-tags{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .pos-tag{background:var(--parchment); border:1px solid var(--line); border-radius:100px; padding:6px 14px; font-size:.78rem; display:flex; align-items:center; gap:8px;}
+  .pos-tag button{all:unset; cursor:pointer; color:var(--rust); font-weight:700; font-size:.9rem;}
+
+  .saved-toast{display:inline-block; margin-left:12px; font-size:.78rem; color:var(--sage); font-weight:600; opacity:0; transition:opacity .3s;}
+  .saved-toast.show{opacity:1;}
+
+  .company-badge{font-size:.72rem; color:var(--brass-soft); margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,.12);}
+  .company-badge b{color:var(--parchment); display:block; font-size:.88rem; margin-bottom:2px;}
+
+  @media(max-width:800px){
+    .topbar{padding:10px 12px;}
+    .shell{flex-direction:column;}
+    nav.side{width:100%; flex-direction:row; overflow-x:auto; padding:14px; align-items:center;}
+    nav.side .sub, nav.side button.back, .company-badge{display:none;}
+    .stat-row{grid-template-columns:1fr 1fr;}
+    .form-grid{grid-template-columns:1fr;}
+    main{padding:20px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ SHARED TOP BAR ============ -->
+<div class="topbar">
+  <div class="brand">🏢 <span data-i18n="brandTitle"></span></div>
+  <div class="role-tabs">
+    <button id="roleEmpBtn" class="active" data-i18n="roleEmpTab"></button>
+    <button id="roleAdminBtn" data-i18n="roleAdminTab"></button>
+  </div>
+  <div class="lang-toggle">
+    <button id="langMy" data-lang="my">မြန်မာ</button>
+    <button id="langEn" data-lang="en">English</button>
+  </div>
+</div>
+
+<!-- ======================================================
+     EMPLOYEE SECTION
+====================================================== -->
+<div id="employeeSection">
+<div class="wrap">
+
+  <!-- STEP 0: COMPANY GATE -->
+  <div class="reg-overlay" id="companyGate">
+    <h2>🏢 <span data-i18n="companyGateTitle"></span></h2>
+    <div class="sub" data-i18n="companyGateSub"></div>
+    <label class="fld" data-i18n="companyCodeLabel"></label>
+    <input type="text" id="companyCodeInput" data-i18n-ph="companyCodePh">
+    <button class="btn-solid" id="companyContinueBtn" data-i18n="continueBtn"></button>
+    <div class="toggle-mode" data-i18n="companyGateHint"></div>
+  </div>
+
+  <!-- STEP 1: REGISTER / LOGIN -->
+  <div class="reg-overlay hidden" id="regOverlay">
+    <div class="company-pill">
+      🏢 <span id="companyPillName"></span>
+      <button id="changeCompanyBtn" data-i18n="changeCompanyBtn"></button>
+    </div>
+
+    <div id="registerBlock">
+      <h2>👋 <span data-i18n="welcomeTitle"></span></h2>
+      <div class="sub" data-i18n="welcomeSub"></div>
+      <label class="fld" data-i18n="nameLabel"></label>
+      <input type="text" id="regName" data-i18n-ph="namePh">
+      <label class="fld" data-i18n="positionLabel"></label>
+      <select id="regPosition"></select>
+      <label class="fld" data-i18n="codeLabel"></label>
+      <input type="text" id="regCode" data-i18n-ph="codePh">
+      <label class="fld" data-i18n="phoneLabel"></label>
+      <input type="text" id="regPhone" data-i18n-ph="phonePh">
+      <button class="btn-solid" id="regSubmitBtn" data-i18n="startBtn"></button>
+      <div class="toggle-mode">
+        <span data-i18n="haveCodeText"></span> <button id="showLoginBtn" data-i18n="haveCodeBtn"></button>
+      </div>
+    </div>
+
+    <div id="loginBlock" class="hidden">
+      <h2>🔑 <span data-i18n="loginTitle"></span></h2>
+      <div class="sub" data-i18n="loginSub"></div>
+      <label class="fld" data-i18n="codeLabel2"></label>
+      <input type="text" id="loginCode" data-i18n-ph="codePh">
+      <button class="btn-solid" id="loginSubmitBtn" data-i18n="loginBtn"></button>
+      <div class="toggle-mode">
+        <button id="showRegisterBtn" data-i18n="backToRegister"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="mainApp" class="hidden" style="display:grid; gap:22px;">
+    <div class="stamp-card">
+      <div class="company-name" id="stampCompanyName"></div>
+      <div class="clock mono" id="liveClock">--:--:--</div>
+      <div class="date" id="liveDate">-</div>
+      <div class="who-row">
+        <div>
+          <div class="who-name" id="whoName">-</div>
+          <div class="who-position" id="whoPosition">-</div>
+        </div>
+      </div>
+      <div class="who-row">
+        <button class="switch-link" id="switchUserLink" data-i18n="switchUserLink"></button>
+      </div>
+      <div class="stamp-actions">
+        <button class="stamp-btn btn-in" id="checkInBtn">CHECK IN</button>
+        <button class="stamp-btn btn-out" id="checkOutBtn">CHECK OUT</button>
+      </div>
+      <div class="status-line" id="statusLine"></div>
+      <div class="schedule-note" id="scheduleNote"></div>
+    </div>
+
+    <div class="card" id="announcementCard">
+      <h2 data-i18n="annCardTitle"></h2>
+      <div class="sub" data-i18n="annCardSub"></div>
+      <ul class="log-list" id="empAnnList"></ul>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="todayCardTitle"></h2>
+      <div class="sub" data-i18n="todayCardSub"></div>
+      <div class="today-grid">
+        <div class="today-box"><div class="lbl" data-i18n="checkInLbl"></div><div class="val empty" id="todayIn">--:--</div></div>
+        <div class="today-box"><div class="lbl" data-i18n="checkOutLbl"></div><div class="val empty" id="todayOut">--:--</div></div>
+        <div class="today-box"><div class="lbl" data-i18n="otLbl"></div><div class="val empty" id="todayOT">--</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="logCardTitle"></h2>
+      <div class="sub" data-i18n="logCardSub"></div>
+      <textarea id="taskInput" data-i18n-ph="taskPh"></textarea>
+      <div class="row">
+        <input type="number" id="hoursInput" step="0.5" min="0" data-i18n-ph="hoursPh">
+        <button class="btn-solid" id="addLogBtn" data-i18n="addLogBtn"></button>
+      </div>
+      <ul class="log-list" id="logList"></ul>
+
+      <div class="divider"></div>
+
+      <h2 data-i18n="otCardTitle"></h2>
+      <div class="sub" data-i18n="otCardSub"></div>
+      <textarea id="otDesc" data-i18n-ph="otDescPh"></textarea>
+      <div class="row">
+        <input type="number" id="otHours" step="0.5" min="0" data-i18n-ph="otHoursPh">
+        <button class="btn-solid ot" id="addOtBtn" data-i18n="addOtBtn"></button>
+      </div>
+      <div class="sub" style="margin-top:10px;" data-i18n="otApprovalNote"></div>
+      <ul class="log-list" id="otList"></ul>
+
+      <div class="divider"></div>
+
+      <h2 data-i18n="haCardTitle"></h2>
+      <div class="sub" data-i18n="haCardSub"></div>
+      <textarea id="haDesc" data-i18n-ph="haDescPh"></textarea>
+      <div class="row">
+        <input type="number" id="haAmount" step="100" min="0" data-i18n-ph="haAmountPh">
+        <input type="file" id="haPhoto" accept="image/*,application/pdf" style="flex:1; min-width:180px;">
+        <button class="btn-solid ot" id="addHaBtn" data-i18n="addHaBtn"></button>
+      </div>
+      <div class="sub" style="margin-top:10px;" data-i18n="haApprovalNote"></div>
+      <ul class="log-list" id="haList"></ul>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="leaveCardTitle"></h2>
+      <div class="sub" data-i18n="leaveCardSub"></div>
+      <div class="grid2">
+        <div>
+          <label class="fld" data-i18n="leaveTypeLabel"></label>
+          <select id="leaveType">
+            <option value="annual" data-i18n="leaveAnnual"></option>
+            <option value="casual" data-i18n="leaveCasual"></option>
+            <option value="sick" data-i18n="leaveSick"></option>
+            <option value="unpaid" data-i18n="leaveUnpaid"></option>
+            <option value="other" data-i18n="leaveOther"></option>
+          </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;"><div class="balance-note" id="balanceNote">—</div></div>
+        <div><label class="fld" data-i18n="startDateLabel"></label><input type="date" id="leaveStart"></div>
+        <div><label class="fld" data-i18n="endDateLabel"></label><input type="date" id="leaveEnd"></div>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="fld" data-i18n="reasonLabel"></label>
+        <textarea id="leaveReason" style="min-height:60px;" data-i18n-ph="reasonPh"></textarea>
+      </div>
+      <div class="row"><button class="btn-solid" id="submitLeaveBtn" data-i18n="submitLeaveBtn"></button></div>
+      <div class="leave-list" id="leaveList"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ======================================================
+     ADMIN SECTION
+====================================================== -->
+<div id="adminSection" class="hidden">
+
+  <div class="gate-wrap" id="gateWrap">
+    <div class="gate-card">
+      <h1 data-i18n="gateTitle"></h1>
+      <div class="sub" data-i18n="gateSub"></div>
+      <div class="gate-tabs">
+        <button id="tabLogin" class="active" data-i18n="tabLogin"></button>
+        <button id="tabCreate" data-i18n="tabCreate"></button>
+      </div>
+      <div id="loginPane">
+        <label class="fld" data-i18n="companyCodeLabel"></label>
+        <input type="text" id="gcLoginCode" data-i18n-ph="companyCodePh">
+        <label class="fld" data-i18n="adminPasswordLabel"></label>
+        <input type="password" id="gcLoginPassword">
+        <button class="btn-solid" id="gcLoginBtn" data-i18n="loginBtn"></button>
+      </div>
+      <div id="createPane" class="hidden">
+        <label class="fld" data-i18n="companyNameLabel"></label>
+        <input type="text" id="gcNewName" data-i18n-ph="companyNamePh">
+        <label class="fld" data-i18n="companyCodeLabel"></label>
+        <input type="text" id="gcNewCode" data-i18n-ph="companyCodePh">
+        <label class="fld" data-i18n="adminPasswordLabel"></label>
+        <input type="password" id="gcNewPassword">
+        <button class="btn-solid" id="gcCreateBtn" data-i18n="createBtn"></button>
+      </div>
+      <div class="gate-hint" data-i18n="gateHint"></div>
+    </div>
+  </div>
+
+  <div class="shell hidden" id="appShell">
+    <nav class="side">
+      <div class="company-badge"><b id="sideCompanyName">-</b><span id="sideCompanyCode"></span></div>
+      <button class="nav-btn active" data-panel="dashboard" data-i18n="navDashboard"></button>
+      <button class="nav-btn" data-panel="attendance" data-i18n="navAttendance"></button>
+      <button class="nav-btn" data-panel="employees" data-i18n="navEmployees"></button>
+      <button class="nav-btn" data-panel="positions" data-i18n="navPositions"></button>
+      <button class="nav-btn" data-panel="settings" data-i18n="navSettings"></button>
+      <button class="nav-btn" data-panel="logs" data-i18n="navLogs"></button>
+      <button class="nav-btn" data-panel="overtime" data-i18n="navOvertime"></button>
+      <button class="nav-btn" data-panel="leaves" data-i18n="navLeaves"></button>
+      <button class="nav-btn" data-panel="announcements" data-i18n="navAnnouncements"></button>
+      <button class="nav-btn" data-panel="healthallowance" data-i18n="navHealthAllowance"></button>
+      <button class="back" id="logoutBtn" data-i18n="logoutBtn"></button>
+    </nav>
+
+    <main>
+      <div class="panel active" id="panel-dashboard">
+        <h2 data-i18n="dashTitle"></h2>
+        <div class="sub" data-i18n="dashSub"></div>
+        <div class="stat-row" id="statRow"></div>
+        <div class="card">
+          <h3 data-i18n="dashTableTitle"></h3>
+          <table id="dashTable"><thead><tr>
+            <th class="mono">Code</th><th data-i18n="colName"></th><th data-i18n="colPosition"></th>
+            <th class="mono" data-i18n="colCheckIn"></th><th class="mono" data-i18n="colCheckOut"></th>
+            <th data-i18n="colStatus"></th><th class="mono" data-i18n="colOT"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-attendance">
+        <h2 data-i18n="attTitle"></h2>
+        <div class="sub" data-i18n="attSub"></div>
+        <div class="card">
+          <table id="attTable"><thead><tr>
+            <th data-i18n="colDate"></th><th class="mono">Code</th><th data-i18n="colName"></th>
+            <th class="mono" data-i18n="colCheckIn"></th><th class="mono" data-i18n="colCheckOut"></th>
+            <th data-i18n="colStatus"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-employees">
+        <h2 data-i18n="empTitle"></h2>
+        <div class="sub" data-i18n="empSub"></div>
+        <div class="card">
+          <h3 data-i18n="empAddTitle"></h3>
+          <div class="form-grid">
+            <div><label class="fld">Employee Code</label><input id="empCode" placeholder="EMP004"></div>
+            <div><label class="fld" data-i18n="colName"></label><input id="empName"></div>
+            <div><label class="fld" data-i18n="colPosition"></label><select id="empPosition"></select></div>
+            <div><label class="fld" data-i18n="colPhone"></label><input id="empPhone" placeholder="09-xxxxxxxxx"></div>
+          </div>
+          <button class="btn" id="addEmpBtn" data-i18n="empAddBtn"></button>
+        </div>
+        <div class="card">
+          <h3 data-i18n="empListTitle"></h3>
+          <table id="empTable"><thead><tr>
+            <th class="mono">Code</th><th data-i18n="colName"></th><th data-i18n="colPosition"></th><th data-i18n="colPhone"></th><th></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-positions">
+        <h2 data-i18n="posTitle"></h2>
+        <div class="sub" data-i18n="posSub"></div>
+        <div class="card">
+          <h3 data-i18n="posAddTitle"></h3>
+          <div class="form-grid">
+            <div><label class="fld" data-i18n="posNameLabel"></label><input id="posName"></div>
+            <div><label class="fld" data-i18n="posDeptLabel"></label><input id="posDept"></div>
+          </div>
+          <button class="btn" id="addPosBtn" data-i18n="posAddBtn"></button>
+          <div class="pos-tags" id="posTags"></div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-settings">
+        <h2 data-i18n="setTitle"></h2>
+        <div class="sub" data-i18n="setSub"></div>
+        <div class="card">
+          <h3 data-i18n="setHoursTitle"></h3>
+          <div class="form-grid">
+            <div><label class="fld" data-i18n="setCheckInLabel"></label><input type="time" id="setCheckIn"></div>
+            <div><label class="fld" data-i18n="setCheckOutLabel"></label><input type="time" id="setCheckOut"></div>
+            <div><label class="fld" data-i18n="setGraceLabel"></label><input type="number" id="setGrace" min="0"></div>
+            <div><label class="fld" data-i18n="setOtPayLabel"></label><input type="number" id="setOtPayRate" min="0" step="100"></div>
+          </div>
+          <div class="hint" data-i18n="setHint"></div>
+          <button class="btn" id="saveSettingsBtn" data-i18n="saveBtn"></button>
+          <span class="saved-toast" id="settingsToast" data-i18n="savedToast"></span>
+        </div>
+        <div class="card">
+          <h3 data-i18n="quotaTitle"></h3>
+          <div class="hint" data-i18n="quotaHint"></div>
+          <div class="form-grid" style="grid-template-columns:repeat(5,1fr);">
+            <div><label class="fld">Annual</label><input type="number" id="qAnnual" min="0"></div>
+            <div><label class="fld">Casual</label><input type="number" id="qCasual" min="0"></div>
+            <div><label class="fld">Sick</label><input type="number" id="qSick" min="0"></div>
+            <div><label class="fld">Unpaid</label><input type="number" id="qUnpaid" min="0"></div>
+            <div><label class="fld">Other</label><input type="number" id="qOther" min="0"></div>
+          </div>
+          <button class="btn" id="saveQuotaBtn" data-i18n="saveBtn"></button>
+          <span class="saved-toast" id="quotaToast" data-i18n="savedToast"></span>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-logs">
+        <h2 data-i18n="logsTitle"></h2>
+        <div class="sub" data-i18n="logsSub"></div>
+        <div class="card">
+          <table id="logTable"><thead><tr>
+            <th data-i18n="colDate"></th><th data-i18n="colName"></th><th data-i18n="colTask"></th><th class="mono" data-i18n="colHours"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-overtime">
+        <h2 data-i18n="otTitle"></h2>
+        <div class="sub" data-i18n="otSub"></div>
+        <div class="card">
+          <h3 data-i18n="otPendingTitle"></h3>
+          <table id="otTable"><thead><tr>
+            <th data-i18n="colName"></th><th data-i18n="colDate"></th><th class="mono" data-i18n="colHours"></th>
+            <th data-i18n="colDesc"></th><th data-i18n="colStatus"></th><th></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+        <div class="card">
+          <h3 data-i18n="otMonthlyTitle"></h3>
+          <div class="hint" id="otMonthlyHint"></div>
+          <table id="otMonthlyTable"><thead><tr>
+            <th data-i18n="colName"></th><th class="mono" data-i18n="colOtHoursApproved"></th>
+            <th class="mono" data-i18n="colRate"></th><th class="mono" data-i18n="colTotalPay"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-leaves">
+        <h2 data-i18n="leavesTitle"></h2>
+        <div class="sub" data-i18n="leavesSub"></div>
+        <div class="card">
+          <table id="leaveTable"><thead><tr>
+            <th data-i18n="colName"></th><th data-i18n="colType"></th><th data-i18n="colPeriod"></th>
+            <th data-i18n="colReason"></th><th data-i18n="colStatus"></th><th></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+        <div class="card">
+          <h3 data-i18n="balanceTitle"></h3>
+          <table id="balanceTable"><thead><tr><th data-i18n="colName"></th><th>Annual</th><th>Casual</th><th>Sick</th><th>Unpaid</th><th>Other</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-announcements">
+        <h2 data-i18n="annTitle"></h2>
+        <div class="sub" data-i18n="annSub"></div>
+        <div class="card">
+          <h3 data-i18n="annAddTitle"></h3>
+          <textarea id="annMessage" data-i18n-ph="annPlaceholder"></textarea>
+          <div class="row"><button class="btn" id="postAnnBtn" data-i18n="annPostBtn"></button></div>
+        </div>
+        <div class="card">
+          <h3 data-i18n="annListTitle"></h3>
+          <ul class="log-list" id="adminAnnList"></ul>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-healthallowance">
+        <h2 data-i18n="haTitle"></h2>
+        <div class="sub" data-i18n="haSub"></div>
+        <div class="card">
+          <table id="haTable"><thead><tr>
+            <th data-i18n="colName"></th><th data-i18n="colDate"></th><th data-i18n="colDesc"></th>
+            <th class="mono" data-i18n="colAmount"></th><th data-i18n="colPhoto"></th>
+            <th data-i18n="colStatus"></th><th></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SUPABASE CONNECTION — this app now talks to a real, shared
+   database instead of the browser's localStorage. Every company
+   and every employee's data lives in one place and is reachable
+   from any device.
+============================================================ */
+const SUPABASE_URL = 'https://ucvzrglujqdouwponinf.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_lcBTcOTiBflx_qgckRL7Ug_Iej82ZUm';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function rpc(name, params){
+  const { data, error } = await sb.rpc(name, params);
+  if(error) throw error;
+  return data;
+}
+
+const I18N = {
+  my: {
+    brandTitle: 'ဝန်ထမ်း စီမံခန့်ခွဲမှုစနစ်', roleEmpTab: '👤 ဝန်ထမ်း Portal', roleAdminTab: '🛠 Admin Panel',
+    appTitle: 'ဝန်ထမ်း Check In / Check Out', appSubtitle: 'နေ့စဉ် အချိန်မှတ်တမ်းနှင့် လုပ်ငန်းမှတ်တမ်း',
+    companyGateTitle: 'ကုမ္ပဏီ ရွေးချယ်ပါ', companyGateSub: 'သင့်ကုမ္ပဏီ Admin ပေးထားသော Company Code ကို ရိုက်ထည့်ပါ',
+    companyCodeLabel: 'Company Code', companyCodePh: 'ဥပမာ - GOLDENSTAR',
+    continueBtn: 'ဆက်လက်လုပ်ဆောင်မည်', companyGateHint: 'Company Code မသိပါက သင့် HR / Admin ထံ မေးမြန်းပါ',
+    changeCompanyBtn: '(ပြောင်းရန်)',
+    welcomeTitle: 'ကြိုဆိုပါတယ်! အရင်ဆုံး မိမိအချက်အလက် ဖြည့်ပါ',
+    welcomeSub: 'ဤစနစ်ကို ပထမဆုံးအကြိမ် အသုံးပြုခြင်းဖြစ်ပါက အောက်ပါအချက်များကို ဖြည့်သွင်းပေးပါ',
+    nameLabel: 'အမည်', namePh: 'ဥပမာ - မောင်မောင်',
+    positionLabel: 'ရာထူး',
+    codeLabel: 'Employee Code (မဖြစ်မနေမလို)', codePh: 'ဥပမာ - EMP004',
+    codeLabel2: 'Employee Code',
+    phoneLabel: 'ဖုန်းနံပါတ် (Optional)', phonePh: '09-xxxxxxxxx',
+    startBtn: 'စတင်အသုံးပြုမည်',
+    haveCodeText: 'စာရင်းသွင်းပြီးသားလား?', haveCodeBtn: 'Code ဖြင့် ဝင်ရန်',
+    loginTitle: 'ဝင်ရောက်ရန်',
+    loginSub: 'သင့် Employee Code ကို ရိုက်ထည့်ပါ — အခြားသူများ၏ အချက်အလက်ကို မမြင်နိုင်စေရန် Code မှန်ကန်မှသာ ဝင်ရောက်နိုင်ပါမည်',
+    loginBtn: 'ဝင်မည်', backToRegister: '← ဝန်ထမ်းအသစ် စာရင်းသွင်းမည့်နေရာ ပြန်သွားရန်',
+    switchUserLink: 'အခြားသူအဖြစ် ဝင်ရန် (Switch User)',
+    todayCardTitle: 'ယနေ့ မှတ်တမ်း', todayCardSub: 'သင်၏ ယနေ့ Check in / out အချိန်နှင့် အတည်ပြုပြီး OT',
+    checkInLbl: 'Check In', checkOutLbl: 'Check Out', otLbl: 'OT (နာရီ)',
+    logCardTitle: 'နေ့စဉ်လုပ်ဆောင်ချက် မှတ်တမ်း', logCardSub: 'ယနေ့ လုပ်ဆောင်ခဲ့သည့် အလုပ်များကို ချရေးပါ',
+    taskPh: 'ဥပမာ - Client meeting တက်ရောက်ခြင်း၊ Report ရေးသားခြင်း...', hoursPh: 'ကြာချိန် (နာရီ)',
+    addLogBtn: 'မှတ်တမ်းသွင်းမည်',
+    otCardTitle: 'Overtime (OT) တင်ပြခြင်း', otCardSub: 'ယနေ့ OT လုပ်ခဲ့သည့် အကြောင်းအရာနှင့် ကြာချိန်ကို ဖြည့်ပါ',
+    otDescPh: 'ဥပမာ - Month-end report ပြီးအောင် ညနေချိန်ထပ်လုပ်ခဲ့ခြင်း...', otHoursPh: 'OT ကြာချိန် (နာရီ)',
+    addOtBtn: 'OT တင်ပြမည်', otApprovalNote: '⚠ Admin မှ Approve မလုပ်မချင်း OT အနေနဲ့ အတည်မဖြစ်သေးပါ',
+    leaveCardTitle: 'ခွင့်ရက် ယူခြင်း', leaveCardSub: 'ခွင့်ရက်အမျိုးအစားနှင့် ရက်စွဲကို ရွေးချယ်ပါ',
+    leaveTypeLabel: 'ခွင့်အမျိုးအစား',
+    leaveAnnual: 'အနားယူခွင့် (Annual)', leaveCasual: 'ကိုယ်ရေးကိုယ်တာခွင့် (Casual)',
+    leaveSick: 'ဖျားနာခွင့် (Sick)', leaveUnpaid: 'လစာမဲ့ခွင့် (Unpaid)', leaveOther: 'အခြား',
+    startDateLabel: 'မှစတင်ရက်', endDateLabel: 'အထိ ရက်စွဲ',
+    reasonLabel: 'အကြောင်းပြချက်', reasonPh: 'ခွင့်တောင်းရသည့် အကြောင်းရင်း...', submitLeaveBtn: 'ခွင့်လျှောက်မည်',
+    logEmpty: 'ယနေ့အတွက် မှတ်တမ်းမရှိသေးပါ', otEmpty: 'OT မှတ်တမ်း မရှိသေးပါ',
+    scheduleNote: (s) => `သတ်မှတ်ချိန် — Check In ${s.checkIn} / Check Out ${s.checkOut} (${s.grace} မိနစ် နှောင့်နှေးခွင့်)`,
+    checkedInLate: (tm) => `⚠ Check In မှတ်တမ်းတင်ပြီးပါပြီ — ${tm} (နောက်ကျပါသည်)`,
+    checkedIn: (tm) => `✓ Check In မှတ်တမ်းတင်ပြီးပါပြီ — ${tm}`,
+    checkedOut: (tm) => `✓ Check Out မှတ်တမ်းတင်ပြီးပါပြီ — ${tm}`,
+    balanceNote: (label,quota,used,rem) => `${label} ခွင့် — နှစ်စဉ်သတ်မှတ် ${quota} ရက် / အသုံးပြုပြီး ${used} ရက် / ကျန် ${rem} ရက်`,
+    alertFillName: 'အမည် ဖြည့်ပေးပါ', alertSelectDates: 'ရက်စွဲများ ရွေးချယ်ပေးပါ',
+    alertDateOrder: 'အထိရက်စွဲသည် မှစတင်ရက်ထက် နောက်ကျနေပါသည်',
+    alertQuotaZero: (label) => `${label} ခွင့်ရက် ကုန်ဆုံးသွားပါပြီ (Admin သတ်မှတ်ချက်အတိုင်း)။ ခွင့်တောင်း၍ မရတော့ပါ။`,
+    alertQuotaExceed: (label,rem,req) => `${label} ခွင့် ကျန်ရှိသည်မှာ ${rem} ရက်သာ ဖြစ်ပါသည်။ တောင်းဆိုထားသော ${req} ရက်ထက် နည်းပါသည်။`,
+    alertLeaveSubmitted: 'ခွင့်လျှောက်လွှာ တင်သွင်းပြီးပါပြီ။ Admin မှ အတည်ပြုရန် စောင့်ပါ။',
+    alertOtSubmitted: 'OT မှတ်တမ်း တင်သွင်းပြီးပါပြီ။ Admin approve လုပ်မှသာ အတည်ဖြစ်ပါမည်။',
+    alertCodeNotFound: 'ဤ Employee Code ဖြင့် ဝန်ထမ်း မတွေ့ပါ။ ပြန်စစ်ပေးပါ။', alertEnterCode: 'Employee Code ရိုက်ထည့်ပါ',
+    alertCompanyNotFound: 'ဤ Company Code ကို ရှာမတွေ့ပါ။ Admin Panel ကနေ ကုမ္ပဏီအသစ် ဖန်တီးရပါမည်၊ သို့မဟုတ် Code မှန်မမှန် ပြန်စစ်ပါ။',
+    alertEnterCompanyCode: 'Company Code ရိုက်ထည့်ပါ',
+    gateTitle: 'Admin — ကုမ္ပဏီ ဝင်ရောက်ရန်', gateSub: 'ရှိပြီးသား ကုမ္ပဏီအဖြစ် ဝင်ရောက်ပါ၊ သို့မဟုတ် ကုမ္ပဏီအသစ် ဖန်တီးပါ',
+    tabLogin: 'ဝင်ရောက်ရန်', tabCreate: 'ကုမ္ပဏီအသစ် ဖန်တီးရန်',
+    adminPasswordLabel: 'Admin Password',
+    companyNameLabel: 'ကုမ္ပဏီအမည်', companyNamePh: 'ဥပမာ - Golden Star Trading Co., Ltd.',
+    createBtn: 'ကုမ္ပဏီအသစ် ဖန်တီးမည်',
+    gateHint: 'တစ်ကုမ္ပဏီစီအတွက် ကိုယ်ပိုင် Company Code ရှိသည်။ ဝန်ထမ်းများသည် ဤ Code ဖြင့် User Portal တွင် ဝင်ရောက်ရမည်',
+    logoutBtn: '⎋ ကုမ္ပဏီ ပြောင်းရန် / ထွက်ရန်',
+    navAnnouncements: '📢 ကြော်ငြာများ',
+    annTitle: 'ကြော်ငြာများ', annSub: 'ဝန်ထမ်းအားလုံး မြင်ရမည့် ကြော်ငြာ/အသိပေးစာများ ရေးသားရန်',
+    annAddTitle: 'ကြော်ငြာအသစ် ရေးသားရန်', annPlaceholder: 'ဥပမာ - ယနေ့ညနေ ၃ နာရီတွင် Meeting ရှိပါသည်...',
+    annPostBtn: 'ကြော်ငြာ တင်မည်', annListTitle: 'တင်ထားပြီးသား ကြော်ငြာများ', emptyAnn: 'ကြော်ငြာ မရှိသေးပါ',
+    annCardTitle: '📢 ကုမ္ပဏီ ကြော်ငြာများ', annCardSub: 'Admin မှ တင်ထားသော နောက်ဆုံးရ သတင်းများ',
+    empAnnEmpty: 'ကြော်ငြာ မရှိသေးပါ',
+    confirmDeleteAnn: 'ဤကြော်ငြာကို ဖျက်မှာသေချာပါသလား?',
+    navHealthAllowance: '🏥 Health Allowance',
+    haCardTitle: 'Health Allowance လျှောက်ထားခြင်း', haCardSub: 'ဆေးစာရွက်စာတမ်း ဓာတ်ပုံနှင့်တကွ တင်ပြပါ',
+    haDescPh: 'ဥပမာ - ဆေးရုံသွားခဲ့သည့် အကြောင်းအရာ...', haAmountPh: 'ကုန်ကျငွေ (ရွေးချယ်ခွင့်)',
+    addHaBtn: 'တင်ပြမည်', haApprovalNote: '⚠ Admin မှ Approve မလုပ်မချင်း အတည်မဖြစ်သေးပါ',
+    haEmpty: 'Health Allowance မှတ်တမ်း မရှိသေးပါ',
+    haTitle: 'Health Allowance စီမံခန့်ခွဲမှု', haSub: 'ဝန်ထမ်းများ တင်ပြထားသော ဆေးစာရွက်စာတမ်းများကို အတည်ပြု/ငြင်းပယ် ပြုလုပ်ရန်',
+    colAmount: 'ကုန်ကျငွေ', colPhoto: 'ဓာတ်ပုံ', viewPhotoLink: 'ကြည့်ရန်',
+    alertSelectPhoto: 'ဆေးစာရွက်စာတမ်း ဓာတ်ပုံတင်ပေးပါ', alertHaSubmitted: 'တင်ပြပြီးပါပြီ။ Admin approve လုပ်မှသာ အတည်ဖြစ်ပါမည်။',
+    uploadingText: 'တင်နေဆဲ...',
+    dashTitle: 'Dashboard',
+    dashSub: 'ကုမ္ပဏီ၏ ယနေ့ အနှစ်ချုပ် — ဝန်ထမ်းများ Check in/out လုပ်တာနှင့်တပြိုင်နက် ဒီနေရာမှာ အလိုအလျောက် ပေါ်လာပါမည်',
+    dashTableTitle: 'ယနေ့ Attendance',
+    colName: 'အမည်', colPosition: 'ရာထူး', colCheckIn: 'Check In', colCheckOut: 'Check Out',
+    colStatus: 'Status', colOT: 'OT (hrs)', colDate: 'ရက်စွဲ', colPhone: 'ဖုန်း', colTask: 'လုပ်ဆောင်ချက်',
+    colHours: 'နာရီ', colDesc: 'အကြောင်းအရာ', colType: 'အမျိုးအစား', colPeriod: 'ကာလ', colReason: 'အကြောင်းပြချက်',
+    colOtHoursApproved: 'Approved OT (hrs)', colRate: 'Rate/hr', colTotalPay: 'စုစုပေါင်း ကျသင့်ငွေ',
+    statTotalEmp: 'စုစုပေါင်း ဝန်ထမ်း', statCheckedIn: 'ယနေ့ Check In ဝင်ပြီး', statNotCheckedIn: 'ယနေ့ Check In မဝင်သေး',
+    statPendingLeave: 'ခွင့်ရက် စောင့်ဆိုင်းနေဆဲ',
+    emptyEmp: 'ဝန်ထမ်းစာရင်း မရှိသေးပါ — User Portal မှ ဤ Company Code ဖြင့် စာရင်းသွင်းလိုက်သည်နှင့် ဒီနေရာတွင် အလိုအလျောက် ပေါ်လာပါမည်',
+    attTitle: 'Attendance မှတ်တမ်း',
+    attSub: 'ဝန်ထမ်းအားလုံး၏ Check in / Check out မှတ်တမ်းအပြည့်အစုံ (ဤကုမ္ပဏီ၏ Admin တစ်ဦးတည်းသာ ကြည့်ရှုနိုင်ပါသည်)',
+    emptyAtt: 'မှတ်တမ်း မရှိသေးပါ',
+    empTitle: 'ဝန်ထမ်းများ',
+    empSub: 'ဝန်ထမ်းအသစ်ထည့်ရန် သို့မဟုတ် ရာထူးပြင်ဆင်ရန် — User Portal ကနေ ကိုယ်တိုင်စာရင်းသွင်းလျှင်လည်း ဒီနေရာမှာ အလိုအလျောက်ပေါ်ပါမည်',
+    empAddTitle: 'ဝန်ထမ်းအသစ်ထည့်ရန်', empAddBtn: 'ဝန်ထမ်းထည့်မည်',
+    empListTitle: 'ဝန်ထမ်းစာရင်းအပြည့်အစုံ', deleteBtn: 'ဖျက်မည်',
+    posTitle: 'ရာထူးများ',
+    posSub: 'ကုမ္ပဏီတွင်ရှိသော ရာထူးအမျိုးအစားများ စီမံရန် — ဤစာရင်းသည် User Portal ၏ မှတ်ပုံတင်ရာထူးရွေးစရာစာရင်းလည်း ဖြစ်ပါသည်',
+    posAddTitle: 'ရာထူးအသစ်ထည့်ရန်', posNameLabel: 'ရာထူးအမည်', posDeptLabel: 'ဌာန', posAddBtn: 'ရာထူးထည့်မည်',
+    setTitle: 'အလုပ်ချိန် / ခွင့်ရက် သတ်မှတ်ချက်',
+    setSub: 'ကုမ္ပဏီ၏ စံသတ်မှတ် အလုပ်ချိန်နှင့် OT ကျသင့်ငွေနှုန်းကို ဒီနေရာမှ ချိန်ညှိပါ',
+    setHoursTitle: 'စံသတ်မှတ် အလုပ်ချိန် / OT နှုန်းထား',
+    setCheckInLabel: 'Check In စတင်ချိန်', setCheckOutLabel: 'Check Out ပြီးဆုံးချိန်',
+    setGraceLabel: 'နောက်ကျခွင့် (မိနစ်)', setOtPayLabel: 'OT 1 နာရီ ကျသင့်ငွေ',
+    setHint: '✳ Check In သည် "Check In စတင်ချိန် + နောက်ကျခွင့်" ထက် နောက်ကျပါက Late အဖြစ် အလိုအလျောက် မှတ်တမ်းတင်ပါမည်။<br>✳ ဝန်ထမ်းများ တင်ပြသော OT ကို Admin မှ Approve ပြီးမှသာ တရားဝင် OT အဖြစ် မှတ်တမ်းတင်ပြီး ဤနှုန်းထားအတိုင်း ငွေကြေး အလိုအလျောက် တွက်ချက်ပါမည်',
+    saveBtn: 'သိမ်းဆည်းမည်', savedToast: '✓ သိမ်းဆည်းပြီးပါပြီ',
+    quotaTitle: 'ခွင့်ရက် နှစ်စဉ်သတ်မှတ်ချက် (ရက်)',
+    quotaHint: 'ဤနေရာတွင် သတ်မှတ်ထားသော ရက်အရေအတွက်ထက် ဝန်ထမ်းများ ခွင့်ပိုလျှောက်လို့ မရပါ — ကုန်ပါက System က အလိုအလျောက် ပိတ်ပေးပါမည်',
+    logsTitle: 'Work Logs', logsSub: 'ဝန်ထမ်းများ၏ နေ့စဉ်လုပ်ဆောင်ချက် မှတ်တမ်းအားလုံး', emptyLogs: 'မှတ်တမ်း မရှိသေးပါ',
+    otTitle: 'Overtime (OT) စီမံခန့်ခွဲမှု',
+    otSub: 'ဝန်ထမ်းများ တင်ပြထားသော OT တောင်းဆိုမှုများကို အတည်ပြု/ငြင်းပယ် ပြုလုပ်ရန်၊ လစဉ် OT စုစုပေါင်းနှင့် ကျသင့်ငွေကို အလိုအလျောက် တွက်ချက်ထားပါသည်',
+    otPendingTitle: 'OT တောင်းဆိုမှုများ', otMonthlyTitle: 'လစဉ် OT စုစုပေါင်း (ယခုလ) — Auto တွက်ချက်ချက်',
+    emptyOt: 'OT တောင်းဆိုမှု မရှိသေးပါ', approveBtn: 'Approve', rejectBtn: 'Reject',
+    leavesTitle: 'ခွင့်ရက် ယူမှုများ', leavesSub: 'လျှောက်ထားသော ခွင့်ရက်များကို အတည်ပြု / ငြင်းပယ် ပြုလုပ်ရန်',
+    emptyLeaves: 'ခွင့်လျှောက်လွှာ မရှိသေးပါ', balanceTitle: 'ဝန်ထမ်းများ၏ ခွင့်ရက် လက်ကျန် (ယခုနှစ်)',
+    confirmDeleteEmp: 'ဤဝန်ထမ်းကို ဖျက်မှာသေချာပါသလား?', alertFillEmp: 'Employee Code နှင့် အမည် ဖြည့်ပေးပါ',
+    alertFillGate: 'အကွက်များအားလုံး ဖြည့်ပေးပါ', alertCodeTaken: 'ဤ Company Code ကို အသုံးပြုပြီးသားဖြစ်ပါသည်။ တခြား Code တစ်ခု ရွေးပါ',
+    alertLoginFail: 'Company Code သို့မဟုတ် Password မှားနေပါသည်',
+  },
+  en: {
+    brandTitle: 'HR Management System', roleEmpTab: '👤 Employee Portal', roleAdminTab: '🛠 Admin Panel',
+    appTitle: 'Employee Check In / Check Out', appSubtitle: 'Daily attendance and work log',
+    companyGateTitle: 'Choose your company', companyGateSub: "Enter the Company Code your admin gave you",
+    companyCodeLabel: 'Company Code', companyCodePh: 'e.g. GOLDENSTAR',
+    continueBtn: 'Continue', companyGateHint: "Don't know your company code? Ask your HR / Admin",
+    changeCompanyBtn: '(change)',
+    welcomeTitle: 'Welcome! First, tell us who you are',
+    welcomeSub: 'First time using this system? Please fill in your details below',
+    nameLabel: 'Full name', namePh: 'e.g. Aung Aung',
+    positionLabel: 'Position',
+    codeLabel: 'Employee code (optional)', codePh: 'e.g. EMP004',
+    codeLabel2: 'Employee code',
+    phoneLabel: 'Phone (optional)', phonePh: '09-xxxxxxxxx',
+    startBtn: 'Start using the system',
+    haveCodeText: 'Already registered?', haveCodeBtn: 'Log in with your code',
+    loginTitle: 'Log in',
+    loginSub: "Enter your employee code — this keeps your record private from other employees",
+    loginBtn: 'Log in', backToRegister: '← Back to registration', switchUserLink: 'Switch user',
+    todayCardTitle: "Today's record", todayCardSub: "Your check in / out time and approved OT",
+    checkInLbl: 'Check In', checkOutLbl: 'Check Out', otLbl: 'OT (hrs)',
+    logCardTitle: 'Daily work log', logCardSub: "Write down what you worked on today",
+    taskPh: 'e.g. Attended client meeting, wrote report...', hoursPh: 'Hours spent', addLogBtn: 'Add entry',
+    otCardTitle: 'Overtime (OT) submission', otCardSub: "Describe the OT work you did today and how long it took",
+    otDescPh: 'e.g. Stayed late to finish the month-end report...', otHoursPh: 'OT hours', addOtBtn: 'Submit OT',
+    otApprovalNote: '⚠ This OT is not confirmed until an admin approves it',
+    leaveCardTitle: 'Leave request', leaveCardSub: 'Choose a leave type and the dates', leaveTypeLabel: 'Leave type',
+    leaveAnnual: 'Annual leave', leaveCasual: 'Casual leave',
+    leaveSick: 'Sick leave', leaveUnpaid: 'Unpaid leave', leaveOther: 'Other',
+    startDateLabel: 'Start date', endDateLabel: 'End date',
+    reasonLabel: 'Reason', reasonPh: 'Reason for requesting leave...', submitLeaveBtn: 'Submit request',
+    logEmpty: 'No entries yet for today', otEmpty: 'No OT submissions yet',
+    scheduleNote: (s) => `Standard hours — Check In ${s.checkIn} / Check Out ${s.checkOut} (${s.grace} min grace)`,
+    checkedInLate: (tm) => `⚠ Checked in — ${tm} (late)`,
+    checkedIn: (tm) => `✓ Checked in — ${tm}`,
+    checkedOut: (tm) => `✓ Checked out — ${tm}`,
+    balanceNote: (label,quota,used,rem) => `${label} leave — quota ${quota} days / used ${used} days / remaining ${rem} days`,
+    alertFillName: 'Please enter your name', alertSelectDates: 'Please choose both dates',
+    alertDateOrder: 'End date is before the start date',
+    alertQuotaZero: (label) => `Your ${label} leave balance is used up (admin-set limit). You can't submit another request.`,
+    alertQuotaExceed: (label,rem,req) => `Only ${rem} ${label} day(s) remain, but you requested ${req} day(s).`,
+    alertLeaveSubmitted: 'Leave request submitted. Waiting for admin approval.',
+    alertOtSubmitted: 'OT submitted. It will count once an admin approves it.',
+    alertCodeNotFound: 'No employee found with that code. Please check and try again.',
+    alertEnterCode: 'Please enter your employee code',
+    alertCompanyNotFound: "That company code wasn't found. Ask your admin to create the company first, or check the code.",
+    alertEnterCompanyCode: 'Please enter a company code',
+    gateTitle: 'Admin — Company access', gateSub: 'Log in to an existing company, or create a new one',
+    tabLogin: 'Log in', tabCreate: 'Create new company',
+    adminPasswordLabel: 'Admin Password',
+    companyNameLabel: 'Company name', companyNamePh: 'e.g. Golden Star Trading Co., Ltd.',
+    createBtn: 'Create company',
+    gateHint: 'Each company gets its own Company Code — employees use this code to reach their company on the User Portal',
+    logoutBtn: '⎋ Switch company / Log out',
+    navAnnouncements: '📢 Announcements',
+    annTitle: 'Announcements', annSub: 'Post notices every employee will see',
+    annAddTitle: 'Write a new announcement', annPlaceholder: 'e.g. There is a meeting at 3pm today...',
+    annPostBtn: 'Post announcement', annListTitle: 'Posted announcements', emptyAnn: 'No announcements yet',
+    annCardTitle: '📢 Company announcements', annCardSub: "Latest updates posted by your admin",
+    empAnnEmpty: 'No announcements yet',
+    confirmDeleteAnn: 'Are you sure you want to delete this announcement?',
+    navHealthAllowance: '🏥 Health Allowance',
+    haCardTitle: 'Health Allowance claim', haCardSub: 'Submit a photo of your medical receipt/document',
+    haDescPh: 'e.g. Reason for the clinic/hospital visit...', haAmountPh: 'Amount (optional)',
+    addHaBtn: 'Submit', haApprovalNote: '⚠ Not confirmed until an admin approves it',
+    haEmpty: 'No health allowance submissions yet',
+    haTitle: 'Health Allowance management', haSub: 'Approve or reject medical documents submitted by employees',
+    colAmount: 'Amount', colPhoto: 'Photo', viewPhotoLink: 'View',
+    alertSelectPhoto: 'Please attach a photo of the document', alertHaSubmitted: 'Submitted. It will count once an admin approves it.',
+    uploadingText: 'Uploading...',
+    dashTitle: 'Dashboard',
+    dashSub: "Today's company overview — updates automatically as employees check in/out",
+    dashTableTitle: "Today's attendance",
+    colName: 'Name', colPosition: 'Position', colCheckIn: 'Check In', colCheckOut: 'Check Out',
+    colStatus: 'Status', colOT: 'OT (hrs)', colDate: 'Date', colPhone: 'Phone', colTask: 'Task',
+    colHours: 'Hours', colDesc: 'Description', colType: 'Type', colPeriod: 'Period', colReason: 'Reason',
+    colOtHoursApproved: 'Approved OT (hrs)', colRate: 'Rate/hr', colTotalPay: 'Total pay',
+    statTotalEmp: 'Total employees', statCheckedIn: 'Checked in today', statNotCheckedIn: 'Not checked in yet',
+    statPendingLeave: 'Pending leave requests',
+    emptyEmp: 'No employees yet — they will appear here automatically once registered via the User Portal with this company code',
+    attTitle: 'Attendance history',
+    attSub: "Full check in / check out history for every employee (only this company's admin can see this list)",
+    emptyAtt: 'No records yet',
+    empTitle: 'Employees',
+    empSub: 'Add a new employee or manage positions — self-registrations from the User Portal appear here automatically',
+    empAddTitle: 'Add a new employee', empAddBtn: 'Add employee', empListTitle: 'Full employee list', deleteBtn: 'Delete',
+    posTitle: 'Positions',
+    posSub: 'Manage the position types in the company — this list is also the position picker on the User Portal registration form',
+    posAddTitle: 'Add a new position', posNameLabel: 'Position name', posDeptLabel: 'Department', posAddBtn: 'Add position',
+    setTitle: 'Hours & Leave settings', setSub: "Adjust the company's standard work hours and OT pay rate here",
+    setHoursTitle: 'Standard hours / OT rate',
+    setCheckInLabel: 'Check-in time', setCheckOutLabel: 'Check-out time',
+    setGraceLabel: 'Grace period (minutes)', setOtPayLabel: 'OT pay per hour',
+    setHint: '✳ A check-in later than "check-in time + grace period" is automatically recorded as Late.<br>✳ OT an employee submits only counts once you approve it here — approved hours are automatically paid at this rate.',
+    saveBtn: 'Save', savedToast: '✓ Saved',
+    quotaTitle: 'Annual leave quota (days)',
+    quotaHint: "Employees can't request more than the number of days set here per type — the system blocks further requests automatically once used up",
+    logsTitle: 'Work Logs', logsSub: 'All daily work log entries from every employee', emptyLogs: 'No entries yet',
+    otTitle: 'Overtime (OT) management',
+    otSub: 'Approve or reject OT submitted by employees — monthly totals and pay are calculated automatically',
+    otPendingTitle: 'OT requests', otMonthlyTitle: 'Monthly OT summary (this month) — auto-calculated',
+    emptyOt: 'No OT requests yet', approveBtn: 'Approve', rejectBtn: 'Reject',
+    leavesTitle: 'Leave requests', leavesSub: 'Approve or reject submitted leave requests',
+    emptyLeaves: 'No leave requests yet', balanceTitle: "Employees' leave balances (this year)",
+    confirmDeleteEmp: 'Are you sure you want to delete this employee?', alertFillEmp: 'Please fill in employee code and name',
+    alertFillGate: 'Please fill in every field', alertCodeTaken: 'That company code is already taken. Please choose another.',
+    alertLoginFail: 'Wrong company code or password',
+  }
+};
+function currentLang(){ return localStorage.getItem('hr_lang') || 'my'; }
+function t(key, ...args){
+  const entry = I18N[currentLang()][key];
+  return typeof entry === 'function' ? entry(...args) : (entry ?? key);
+}
+function applyLanguage(lang){
+  localStorage.setItem('hr_lang', lang);
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  document.getElementById('langMy').classList.toggle('active', lang === 'my');
+  document.getElementById('langEn').classList.toggle('active', lang === 'en');
+  refreshToday();
+  renderAll();
+}
+document.getElementById('langMy').addEventListener('click', () => applyLanguage('my'));
+document.getElementById('langEn').addEventListener('click', () => applyLanguage('en'));
+
+/* --- Role switcher --- */
+document.getElementById('roleEmpBtn').addEventListener('click', () => showRole('employee'));
+document.getElementById('roleAdminBtn').addEventListener('click', () => showRole('admin'));
+function showRole(role){
+  document.getElementById('employeeSection').classList.toggle('hidden', role !== 'employee');
+  document.getElementById('adminSection').classList.toggle('hidden', role !== 'admin');
+  document.getElementById('roleEmpBtn').classList.toggle('active', role === 'employee');
+  document.getElementById('roleAdminBtn').classList.toggle('active', role === 'admin');
+}
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function fmtTime(t){ return t ? t.slice(0,5) : null; }
+
+/* ============================================================
+   EMPLOYEE SECTION — every read/write goes through rpc() to
+   Supabase. Session state (which company, which employee) is
+   just cached locally for convenience; the actual data always
+   comes from the database.
+============================================================ */
+function activeCompanyCode(){ return localStorage.getItem('hr_active_company'); }
+function currentEmployee(){
+  const raw = localStorage.getItem('hr_current_employee');
+  return raw ? JSON.parse(raw) : null;
+}
+function currentEmployeeId(){ const e = currentEmployee(); return e ? e.id : null; }
+
+const LEAVE_KEY_MAP = {annual:'leaveAnnual', casual:'leaveCasual', sick:'leaveSick', unpaid:'leaveUnpaid', other:'leaveOther'};
+function leaveTypeLabel(type){ return t(LEAVE_KEY_MAP[type] || type); }
+
+function tickClock(){
+  const now = new Date();
+  const clockEl = document.getElementById('liveClock');
+  if(!clockEl) return;
+  clockEl.textContent = now.toTimeString().slice(0,8);
+  const localeMap = {my:'en-GB', en:'en-US'};
+  document.getElementById('liveDate').textContent = now.toLocaleDateString(localeMap[currentLang()], {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+}
+setInterval(tickClock, 1000); tickClock();
+
+async function populateRegPosition(){
+  try {
+    const positions = await rpc('list_positions', {p_code: activeCompanyCode()});
+    document.getElementById('regPosition').innerHTML = (positions || []).map(p => `<option>${p.position_name}</option>`).join('');
+  } catch(e){ console.error(e); }
+}
+
+function showCompanyGate(){
+  document.getElementById('companyGate').classList.remove('hidden');
+  document.getElementById('regOverlay').classList.add('hidden');
+  document.getElementById('mainApp').classList.add('hidden');
+}
+async function enterCompany(){
+  document.getElementById('companyGate').classList.add('hidden');
+  const name = localStorage.getItem('hr_active_company_name') || activeCompanyCode();
+  document.getElementById('companyPillName').textContent = name;
+  document.getElementById('stampCompanyName').textContent = name;
+  await populateRegPosition();
+  const emp = currentEmployee();
+  if(emp){ showMainApp(); } else { showRegistration(); }
+}
+
+document.getElementById('companyContinueBtn').addEventListener('click', async () => {
+  const code = document.getElementById('companyCodeInput').value.trim();
+  if(!code){ alert(t('alertEnterCompanyCode')); return; }
+  try {
+    const rows = await rpc('get_company_info', {p_code: code});
+    if(!rows || rows.length === 0){ alert(t('alertCompanyNotFound')); return; }
+    localStorage.setItem('hr_active_company', code);
+    localStorage.setItem('hr_active_company_name', rows[0].company_name);
+    document.getElementById('companyCodeInput').value = '';
+    await enterCompany();
+  } catch(e){ alert(e.message); }
+});
+document.getElementById('changeCompanyBtn').addEventListener('click', () => {
+  localStorage.removeItem('hr_active_company');
+  localStorage.removeItem('hr_active_company_name');
+  localStorage.removeItem('hr_current_employee');
+  showCompanyGate();
+});
+
+function showRegistration(){
+  localStorage.removeItem('hr_current_employee');
+  document.getElementById('regOverlay').classList.remove('hidden');
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('registerBlock').classList.remove('hidden');
+  document.getElementById('loginBlock').classList.add('hidden');
+  populateRegPosition();
+}
+function showMainApp(){
+  document.getElementById('regOverlay').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  const emp = currentEmployee();
+  if(emp){
+    document.getElementById('whoName').textContent = emp.name;
+    document.getElementById('whoPosition').textContent = emp.position;
+  }
+  refreshToday();
+}
+
+document.getElementById('showLoginBtn').addEventListener('click', () => {
+  document.getElementById('registerBlock').classList.add('hidden');
+  document.getElementById('loginBlock').classList.remove('hidden');
+});
+document.getElementById('showRegisterBtn').addEventListener('click', () => {
+  document.getElementById('loginBlock').classList.add('hidden');
+  document.getElementById('registerBlock').classList.remove('hidden');
+});
+document.getElementById('switchUserLink').addEventListener('click', showRegistration);
+
+document.getElementById('regSubmitBtn').addEventListener('click', async () => {
+  const name = document.getElementById('regName').value.trim();
+  const position = document.getElementById('regPosition').value;
+  const code = document.getElementById('regCode').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  if(!name){ alert(t('alertFillName')); return; }
+  try {
+    const rows = await rpc('register_employee', {
+      p_code: activeCompanyCode(), p_full_name: name, p_position_name: position, p_employee_code: code, p_phone: phone
+    });
+    const emp = rows[0];
+    localStorage.setItem('hr_current_employee', JSON.stringify({id: emp.id, code: emp.employee_code, name: emp.full_name, position: emp.position_name}));
+    document.getElementById('regName').value = ''; document.getElementById('regCode').value = ''; document.getElementById('regPhone').value = '';
+    showMainApp();
+  } catch(e){ alert(e.message); }
+});
+
+document.getElementById('loginSubmitBtn').addEventListener('click', async () => {
+  const code = document.getElementById('loginCode').value.trim();
+  if(!code){ alert(t('alertEnterCode')); return; }
+  try {
+    const rows = await rpc('employee_login', {p_code: activeCompanyCode(), p_employee_code: code});
+    if(!rows || rows.length === 0){ alert(t('alertCodeNotFound')); return; }
+    const emp = rows[0];
+    localStorage.setItem('hr_current_employee', JSON.stringify({id: emp.id, code: emp.employee_code, name: emp.full_name, position: emp.position_name}));
+    document.getElementById('loginCode').value = '';
+    showMainApp();
+  } catch(e){ alert(e.message); }
+});
+
+async function refreshToday(){
+  if(!activeCompanyCode()) return;
+  const mainAppEl = document.getElementById('mainApp');
+  if(!mainAppEl || mainAppEl.classList.contains('hidden')) return;
+  const emp = currentEmployee();
+  if(!emp) return;
+  const code = activeCompanyCode();
+  try {
+    const [settingsRows, attRows, otRows] = await Promise.all([
+      rpc('get_settings', {p_code: code}),
+      rpc('get_my_attendance_today', {p_code: code, p_employee_id: emp.id}),
+      rpc('get_my_ot', {p_code: code, p_employee_id: emp.id})
+    ]);
+    const settings = settingsRows[0] || {standard_check_in:'09:00:00', standard_check_out:'17:00:00', grace_minutes:15};
+    const rec = attRows[0] || null;
+    const inBox = document.getElementById('todayIn'), outBox = document.getElementById('todayOut'), otBox = document.getElementById('todayOT');
+
+    inBox.textContent = rec && rec.check_in_time ? fmtTime(rec.check_in_time) : '--:--';
+    inBox.classList.toggle('empty', !(rec && rec.check_in_time));
+    inBox.classList.toggle('warn', !!(rec && rec.status === 'late'));
+    outBox.textContent = rec && rec.check_out_time ? fmtTime(rec.check_out_time) : '--:--';
+    outBox.classList.toggle('empty', !(rec && rec.check_out_time));
+
+    const approvedTodayOT = (otRows || [])
+      .filter(o => o.status === 'approved' && o.work_date === todayStr())
+      .reduce((sum,o) => sum + Number(o.hours), 0);
+    otBox.textContent = approvedTodayOT > 0 ? approvedTodayOT.toFixed(1) : '--';
+    otBox.classList.toggle('empty', approvedTodayOT === 0);
+    otBox.classList.toggle('good', approvedTodayOT > 0);
+
+    document.getElementById('checkInBtn').disabled = !!(rec && rec.check_in_time);
+    document.getElementById('checkOutBtn').disabled = !(rec && rec.check_in_time) || !!(rec && rec.check_out_time);
+    document.getElementById('scheduleNote').textContent = t('scheduleNote', {
+      checkIn: fmtTime(settings.standard_check_in), checkOut: fmtTime(settings.standard_check_out), grace: settings.grace_minutes
+    });
+  } catch(e){ console.error(e); }
+
+  refreshLogs(); refreshOt(); refreshLeaves(); refreshAnnouncements(); refreshHealthAllowance();
+}
+
+document.getElementById('checkInBtn').addEventListener('click', async () => {
+  const emp = currentEmployee(); if(!emp) return;
+  try {
+    const rows = await rpc('check_in', {p_code: activeCompanyCode(), p_employee_id: emp.id});
+    const rec = rows[0];
+    document.getElementById('statusLine').textContent = rec.status === 'late' ? t('checkedInLate', fmtTime(rec.check_in_time)) : t('checkedIn', fmtTime(rec.check_in_time));
+  } catch(e){ alert(e.message); }
+  refreshToday();
+});
+
+document.getElementById('checkOutBtn').addEventListener('click', async () => {
+  const emp = currentEmployee(); if(!emp) return;
+  try {
+    const rows = await rpc('check_out', {p_code: activeCompanyCode(), p_employee_id: emp.id});
+    document.getElementById('statusLine').textContent = t('checkedOut', fmtTime(rows[0].check_out_time));
+  } catch(e){ alert(e.message); }
+  refreshToday();
+});
+
+async function refreshLogs(){
+  const emp = currentEmployee(); if(!emp) return;
+  try {
+    const list = await rpc('get_my_work_logs_today', {p_code: activeCompanyCode(), p_employee_id: emp.id});
+    document.getElementById('logList').innerHTML = (list && list.length) ? list.map(l => `
+      <li>${l.task_description}<div class="meta">${l.hours_spent ? l.hours_spent + ' hrs · ' : ''}${l.log_date}</div></li>`).join('')
+      : `<li style="border-left-color:var(--line); color:var(--slate);">${t('logEmpty')}</li>`;
+  } catch(e){ console.error(e); }
+}
+document.getElementById('addLogBtn').addEventListener('click', async () => {
+  const emp = currentEmployee(); if(!emp) return;
+  const task = document.getElementById('taskInput').value.trim(); if(!task) return;
+  const hours = document.getElementById('hoursInput').value;
+  try {
+    await rpc('add_work_log', {p_code: activeCompanyCode(), p_employee_id: emp.id, p_task: task, p_hours: hours ? Number(hours) : null});
+    document.getElementById('taskInput').value = ''; document.getElementById('hoursInput').value = '';
+    refreshLogs();
+  } catch(e){ alert(e.message); }
+});
+
+async function refreshOt(){
+  const emp = currentEmployee(); if(!emp) return;
+  try {
+    const list = await rpc('get_my_ot', {p_code: activeCompanyCode(), p_employee_id: emp.id});
+    document.getElementById('otList').innerHTML = (list && list.length) ? list.map(o => `
+      <li style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+        <span>${o.description}<div class="meta">${o.hours} hrs · ${o.work_date}</div></span>
+        <span class="badge ${o.status}">${o.status}</span>
+      </li>`).join('') : `<li style="border-left-color:var(--line); color:var(--slate);">${t('otEmpty')}</li>`;
+  } catch(e){ console.error(e); }
+}
+document.getElementById('addOtBtn').addEventListener('click', async () => {
+  const emp = currentEmployee(); if(!emp) return;
+  const description = document.getElementById('otDesc').value.trim();
+  const hours = parseFloat(document.getElementById('otHours').value);
+  if(!description || !hours || hours <= 0) return;
+  try {
+    await rpc('submit_ot', {p_code: activeCompanyCode(), p_employee_id: emp.id, p_hours: hours, p_description: description});
+    document.getElementById('otDesc').value = ''; document.getElementById('otHours').value = '';
+    refreshOt();
+    alert(t('alertOtSubmitted'));
+  } catch(e){ alert(e.message); }
+});
+
+/* --- Health Allowance (photo upload to Supabase Storage) --- */
+async function refreshHealthAllowance(){
+  const emp = currentEmployee(); if(!emp) return;
+  try {
+    const list = await rpc('get_my_health_allowance', {p_code: activeCompanyCode(), p_employee_id: emp.id});
+    document.getElementById('haList').innerHTML = (list && list.length) ? list.map(h => `
+      <li style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+        <span>${h.description}${h.amount ? ' · ' + Number(h.amount).toLocaleString() : ''}
+          <div class="meta">${h.request_date} · <a href="${h.photo_url}" target="_blank" rel="noopener">${t('viewPhotoLink')}</a></div></span>
+        <span class="badge ${h.status}">${h.status}</span>
+      </li>`).join('') : `<li style="border-left-color:var(--line); color:var(--slate);">${t('haEmpty')}</li>`;
+  } catch(e){ console.error(e); }
+}
+document.getElementById('addHaBtn').addEventListener('click', async () => {
+  const emp = currentEmployee(); if(!emp) return;
+  const description = document.getElementById('haDesc').value.trim();
+  const amount = document.getElementById('haAmount').value;
+  const fileInput = document.getElementById('haPhoto');
+  const file = fileInput.files[0];
+  if(!description) return;
+  if(!file){ alert(t('alertSelectPhoto')); return; }
+  const btn = document.getElementById('addHaBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true; btn.textContent = t('uploadingText');
+  try {
+    const path = `${activeCompanyCode()}/${emp.id}/${Date.now()}_${file.name}`;
+    const { error: upErr } = await sb.storage.from('health-allowance').upload(path, file);
+    if(upErr) throw upErr;
+    const { data: pub } = sb.storage.from('health-allowance').getPublicUrl(path);
+    await rpc('submit_health_allowance', {
+      p_code: activeCompanyCode(), p_employee_id: emp.id, p_description: description,
+      p_amount: amount ? Number(amount) : null, p_photo_url: pub.publicUrl
+    });
+    document.getElementById('haDesc').value = ''; document.getElementById('haAmount').value = ''; fileInput.value = '';
+    refreshHealthAllowance();
+    alert(t('alertHaSubmitted'));
+  } catch(e){ alert(e.message); }
+  finally { btn.disabled = false; btn.textContent = originalText; }
+});
+
+async function refreshLeaves(){
+  const emp = currentEmployee(); if(!emp) return;
+  try {
+    const list = await rpc('get_my_leaves', {p_code: activeCompanyCode(), p_employee_id: emp.id});
+    document.getElementById('leaveList').innerHTML = (list && list.length) ? list.map(l => `
+      <div class="leave-item"><span>${leaveTypeLabel(l.leave_type)} · ${l.start_date} → ${l.end_date}</span><span class="badge ${l.status}">${l.status}</span></div>`).join('') : '';
+  } catch(e){ console.error(e); }
+  refreshBalanceNote();
+}
+async function refreshBalanceNote(){
+  const emp = currentEmployee(); if(!emp) return;
+  const type = document.getElementById('leaveType').value;
+  try {
+    const rows = await rpc('get_my_leave_balance', {p_code: activeCompanyCode(), p_employee_id: emp.id, p_leave_type: type});
+    const b = rows[0] || {quota:0, used:0, remaining:0};
+    const note = document.getElementById('balanceNote');
+    note.textContent = t('balanceNote', leaveTypeLabel(type), b.quota, b.used, Math.max(b.remaining,0));
+    note.classList.toggle('warn', b.remaining <= 0);
+    note.classList.toggle('good', b.remaining > 0);
+  } catch(e){ console.error(e); }
+}
+document.getElementById('leaveType').addEventListener('change', refreshBalanceNote);
+
+document.getElementById('submitLeaveBtn').addEventListener('click', async () => {
+  const emp = currentEmployee(); if(!emp) return;
+  const start = document.getElementById('leaveStart').value, end = document.getElementById('leaveEnd').value;
+  const type = document.getElementById('leaveType').value;
+  if(!start || !end){ alert(t('alertSelectDates')); return; }
+  if(end < start){ alert(t('alertDateOrder')); return; }
+  try {
+    await rpc('submit_leave', {
+      p_code: activeCompanyCode(), p_employee_id: emp.id, p_leave_type: type,
+      p_start: start, p_end: end, p_reason: document.getElementById('leaveReason').value.trim()
+    });
+    document.getElementById('leaveStart').value = ''; document.getElementById('leaveEnd').value = ''; document.getElementById('leaveReason').value = '';
+    refreshLeaves();
+    alert(t('alertLeaveSubmitted'));
+  } catch(e){ alert(e.message); }
+});
+
+async function refreshAnnouncements(){
+  try {
+    const list = await rpc('list_announcements', {p_code: activeCompanyCode()});
+    const ul = document.getElementById('empAnnList');
+    if(!ul) return;
+    ul.innerHTML = (list && list.length) ? list.map(a => `
+      <li>${a.message}<div class="meta">${new Date(a.posted_at).toLocaleString(currentLang() === 'my' ? 'en-GB' : 'en-US')}</div></li>`).join('')
+      : `<li style="border-left-color:var(--line); color:var(--slate);">${t('empAnnEmpty')}</li>`;
+  } catch(e){ console.error(e); }
+}
+
+/* ============================================================
+   ADMIN SECTION
+============================================================ */
+function adminActiveCompanyCode(){ return localStorage.getItem('hr_admin_company'); }
+function adminPassword(){ return localStorage.getItem('hr_admin_password'); }
+function empById(list, id){ return (list || []).find(e => e.id === id); }
+const statusLabel = {present:'Present', late:'Late', absent:'Absent', on_leave:'On Leave'};
+function fmtMoney(n){ return Number(n).toLocaleString(); }
+
+document.getElementById('tabLogin').addEventListener('click', () => {
+  document.getElementById('tabLogin').classList.add('active'); document.getElementById('tabCreate').classList.remove('active');
+  document.getElementById('loginPane').classList.remove('hidden'); document.getElementById('createPane').classList.add('hidden');
+});
+document.getElementById('tabCreate').addEventListener('click', () => {
+  document.getElementById('tabCreate').classList.add('active'); document.getElementById('tabLogin').classList.remove('active');
+  document.getElementById('createPane').classList.remove('hidden'); document.getElementById('loginPane').classList.add('hidden');
+});
+
+document.getElementById('gcLoginBtn').addEventListener('click', async () => {
+  const code = document.getElementById('gcLoginCode').value.trim();
+  const pw = document.getElementById('gcLoginPassword').value;
+  if(!code || !pw){ alert(t('alertFillGate')); return; }
+  try {
+    const rows = await rpc('admin_login', {p_code: code, p_password: pw});
+    if(!rows || rows.length === 0){ alert(t('alertLoginFail')); return; }
+    localStorage.setItem('hr_admin_company', code);
+    localStorage.setItem('hr_admin_password', pw);
+    localStorage.setItem('hr_admin_company_name', rows[0].company_name);
+    await enterAdmin();
+  } catch(e){ alert(t('alertLoginFail')); }
+});
+
+document.getElementById('gcCreateBtn').addEventListener('click', async () => {
+  const name = document.getElementById('gcNewName').value.trim();
+  const code = document.getElementById('gcNewCode').value.trim();
+  const pw = document.getElementById('gcNewPassword').value;
+  if(!name || !code || !pw){ alert(t('alertFillGate')); return; }
+  try {
+    const rows = await rpc('create_company', {p_name: name, p_code: code, p_password: pw});
+    localStorage.setItem('hr_admin_company', code);
+    localStorage.setItem('hr_admin_password', pw);
+    localStorage.setItem('hr_admin_company_name', rows[0].company_name);
+    await enterAdmin();
+  } catch(e){
+    if(e.message && e.message.includes('already taken')){ alert(t('alertCodeTaken')); }
+    else { alert(e.message); }
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem('hr_admin_company');
+  localStorage.removeItem('hr_admin_password');
+  localStorage.removeItem('hr_admin_company_name');
+  document.getElementById('appShell').classList.add('hidden');
+  document.getElementById('gateWrap').classList.remove('hidden');
+});
+
+async function enterAdmin(){
+  document.getElementById('gateWrap').classList.add('hidden');
+  document.getElementById('appShell').classList.remove('hidden');
+  const name = localStorage.getItem('hr_admin_company_name') || adminActiveCompanyCode();
+  document.getElementById('sideCompanyName').textContent = name;
+  document.getElementById('sideCompanyCode').textContent = 'Code: ' + adminActiveCompanyCode();
+  renderAll();
+}
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+    renderAll();
+  });
+});
+
+async function renderDashboard(code, pw){
+  try {
+    const [rows, leaves] = await Promise.all([
+      rpc('admin_today_attendance', {p_code: code, p_password: pw}),
+      rpc('admin_list_leaves', {p_code: code, p_password: pw})
+    ]);
+    const presentCount = rows.filter(r => r.check_in_time).length;
+    const pendingLeaves = leaves.filter(l => l.status === 'pending').length;
+    document.getElementById('statRow').innerHTML = `
+      <div class="stat"><div class="n">${rows.length}</div><div class="l">${t('statTotalEmp')}</div></div>
+      <div class="stat"><div class="n">${presentCount}</div><div class="l">${t('statCheckedIn')}</div></div>
+      <div class="stat"><div class="n">${rows.length - presentCount}</div><div class="l">${t('statNotCheckedIn')}</div></div>
+      <div class="stat"><div class="n">${pendingLeaves}</div><div class="l">${t('statPendingLeave')}</div></div>`;
+
+    const otRows = await rpc('admin_list_ot', {p_code: code, p_password: pw});
+    const otToday = otRows.filter(o => o.status === 'approved' && o.work_date === todayStr());
+    const tbody = document.querySelector('#dashTable tbody');
+    tbody.innerHTML = rows.map(r => {
+      const status = r.check_in_time ? r.status : 'absent';
+      const ot = otToday.filter(o => o.employee_id === r.employee_id).reduce((s,o) => s + Number(o.hours), 0);
+      return `<tr><td class="mono">${r.employee_code}</td><td>${r.full_name}</td><td>${r.position_name}</td>
+        <td class="mono">${fmtTime(r.check_in_time) || '—'}</td><td class="mono">${fmtTime(r.check_out_time) || '—'}</td>
+        <td><span class="badge ${status}">${statusLabel[status]}</span></td>
+        <td class="mono">${ot ? '<span class="ot-tag">'+ot+'</span>' : '—'}</td></tr>`;
+    }).join('') || `<tr><td colspan="7" style="color:var(--slate);">${t('emptyEmp')}</td></tr>`;
+  } catch(e){ console.error('dashboard', e); }
+}
+
+async function renderAttendance(code, pw){
+  try {
+    const rows = await rpc('admin_attendance_history', {p_code: code, p_password: pw});
+    document.querySelector('#attTable tbody').innerHTML = (rows && rows.length) ? rows.map(a => {
+      const status = a.check_in_time ? a.status : 'absent';
+      return `<tr><td>${a.work_date}</td><td class="mono">${a.employee_code}</td><td>${a.full_name}</td>
+        <td class="mono">${fmtTime(a.check_in_time) || '—'}</td><td class="mono">${fmtTime(a.check_out_time) || '—'}</td>
+        <td><span class="badge ${status}">${statusLabel[status]}</span></td></tr>`;
+    }).join('') : `<tr><td colspan="6" style="color:var(--slate);">${t('emptyAtt')}</td></tr>`;
+  } catch(e){ console.error('attendance', e); }
+}
+
+let _cachedPositions = [];
+async function populatePositionSelect(code, pw){
+  try {
+    _cachedPositions = await rpc('list_positions', {p_code: code});
+    document.getElementById('empPosition').innerHTML = _cachedPositions.map(p => `<option>${p.position_name}</option>`).join('');
+  } catch(e){ console.error(e); }
+}
+async function renderEmployees(code, pw){
+  try {
+    const rows = await rpc('admin_list_employees', {p_code: code, p_password: pw});
+    document.querySelector('#empTable tbody').innerHTML = (rows && rows.length) ? rows.map(e => `
+      <tr><td class="mono">${e.employee_code}</td><td>${e.full_name}</td><td>${e.position_name}</td><td class="mono">${e.phone || '—'}</td>
+        <td><button class="btn small ghost" onclick="removeEmployee(${e.id})">${t('deleteBtn')}</button></td></tr>`).join('')
+      : `<tr><td colspan="5" style="color:var(--slate);">${t('emptyEmp')}</td></tr>`;
+  } catch(e){ console.error('employees', e); }
+}
+async function removeEmployee(id){
+  if(!confirm(t('confirmDeleteEmp'))) return;
+  try { await rpc('admin_remove_employee', {p_code: adminActiveCompanyCode(), p_password: adminPassword(), p_employee_id: id}); renderAll(); }
+  catch(e){ alert(e.message); }
+}
+document.getElementById('addEmpBtn').addEventListener('click', async () => {
+  const code = document.getElementById('empCode').value.trim();
+  const name = document.getElementById('empName').value.trim();
+  const position = document.getElementById('empPosition').value;
+  const phone = document.getElementById('empPhone').value.trim();
+  if(!code || !name){ alert(t('alertFillEmp')); return; }
+  try {
+    await rpc('admin_add_employee', {p_code: adminActiveCompanyCode(), p_password: adminPassword(), p_employee_code: code, p_full_name: name, p_position_name: position, p_phone: phone});
+    document.getElementById('empCode').value = ''; document.getElementById('empName').value = ''; document.getElementById('empPhone').value = '';
+    renderAll();
+  } catch(e){ alert(e.message); }
+});
+
+async function renderPositions(code, pw){
+  try {
+    const positions = await rpc('list_positions', {p_code: code});
+    _cachedPositions = positions;
+    document.getElementById('posTags').innerHTML = positions.map(p => `
+      <div class="pos-tag">${p.position_name}${p.department ? ' · ' + p.department : ''} <button onclick="removePosition(${p.id})">×</button></div>`).join('');
+    document.getElementById('empPosition').innerHTML = positions.map(p => `<option>${p.position_name}</option>`).join('');
+  } catch(e){ console.error('positions', e); }
+}
+async function removePosition(id){
+  try { await rpc('admin_remove_position', {p_code: adminActiveCompanyCode(), p_password: adminPassword(), p_position_id: id}); renderAll(); }
+  catch(e){ alert(e.message); }
+}
+document.getElementById('addPosBtn').addEventListener('click', async () => {
+  const name = document.getElementById('posName').value.trim();
+  const dept = document.getElementById('posDept').value.trim();
+  if(!name) return;
+  try {
+    await rpc('admin_add_position', {p_code: adminActiveCompanyCode(), p_password: adminPassword(), p_name: name, p_dept: dept});
+    document.getElementById('posName').value = ''; document.getElementById('posDept').value = '';
+    renderAll();
+  } catch(e){ alert(e.message); }
+});
+
+async function loadSettingsForm(code, pw){
+  try {
+    const rows = await rpc('get_settings', {p_code: code});
+    const s = rows[0] || {standard_check_in:'09:00:00', standard_check_out:'17:00:00', grace_minutes:15, ot_pay_rate:2000};
+    document.getElementById('setCheckIn').value = fmtTime(s.standard_check_in);
+    document.getElementById('setCheckOut').value = fmtTime(s.standard_check_out);
+    document.getElementById('setGrace').value = s.grace_minutes;
+    document.getElementById('setOtPayRate').value = s.ot_pay_rate;
+  } catch(e){ console.error('settings', e); }
+}
+document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+  try {
+    await rpc('admin_update_settings', {
+      p_code: adminActiveCompanyCode(), p_password: adminPassword(),
+      p_check_in: document.getElementById('setCheckIn').value || '09:00',
+      p_check_out: document.getElementById('setCheckOut').value || '17:00',
+      p_grace: parseInt(document.getElementById('setGrace').value) || 0,
+      p_ot_rate: parseFloat(document.getElementById('setOtPayRate').value) || 0
+    });
+    const toast = document.getElementById('settingsToast');
+    toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000);
+    renderAll();
+  } catch(e){ alert(e.message); }
+});
+
+async function loadQuotaForm(code, pw){
+  try {
+    const rows = await rpc('get_leave_quotas', {p_code: code});
+    const q = rows[0] || {annual_days:3, casual_days:6, sick_days:6, unpaid_days:3, other_days:3};
+    document.getElementById('qAnnual').value = q.annual_days;
+    document.getElementById('qCasual').value = q.casual_days;
+    document.getElementById('qSick').value = q.sick_days;
+    document.getElementById('qUnpaid').value = q.unpaid_days;
+    document.getElementById('qOther').value = q.other_days;
+  } catch(e){ console.error('quotas', e); }
+}
+document.getElementById('saveQuotaBtn').addEventListener('click', async () => {
+  try {
+    await rpc('admin_update_leave_quotas', {
+      p_code: adminActiveCompanyCode(), p_password: adminPassword(),
+      p_annual: parseInt(document.getElementById('qAnnual').value) || 0,
+      p_casual: parseInt(document.getElementById('qCasual').value) || 0,
+      p_sick: parseInt(document.getElementById('qSick').value) || 0,
+      p_unpaid: parseInt(document.getElementById('qUnpaid').value) || 0,
+      p_other: parseInt(document.getElementById('qOther').value) || 0
+    });
+    const toast = document.getElementById('quotaToast');
+    toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000);
+    renderAll();
+  } catch(e){ alert(e.message); }
+});
+
+async function renderLogs(code, pw){
+  try {
+    const rows = await rpc('admin_all_work_logs', {p_code: code, p_password: pw});
+    document.querySelector('#logTable tbody').innerHTML = (rows && rows.length) ? rows.map(l => `
+      <tr><td>${l.log_date}</td><td>${l.full_name}</td><td>${l.task_description}</td><td class="mono">${l.hours_spent || '—'}</td></tr>`).join('')
+      : `<tr><td colspan="4" style="color:var(--slate);">${t('emptyLogs')}</td></tr>`;
+  } catch(e){ console.error('logs', e); }
+}
+
+async function renderOvertime(code, pw){
+  try {
+    const rows = await rpc('admin_list_ot', {p_code: code, p_password: pw});
+    document.querySelector('#otTable tbody').innerHTML = (rows && rows.length) ? rows.map(o => `
+      <tr><td>${o.full_name}</td><td>${o.work_date}</td><td class="mono">${o.hours}</td><td>${o.description}</td>
+        <td><span class="badge ${o.status}">${o.status}</span></td>
+        <td>${o.status === 'pending' ? `<div class="actions">
+          <button class="btn small approve" onclick="reviewOt(${o.id}, 'approved')">${t('approveBtn')}</button>
+          <button class="btn small reject" onclick="reviewOt(${o.id}, 'rejected')">${t('rejectBtn')}</button></div>` : '—'}</td></tr>`).join('')
+      : `<tr><td colspan="6" style="color:var(--slate);">${t('emptyOt')}</td></tr>`;
+
+    const settings = (await rpc('get_settings', {p_code: code}))[0] || {ot_pay_rate: 0};
+    const now = new Date();
+    const ym = now.toISOString().slice(0,7);
+    const monthLabel = now.toLocaleDateString(currentLang() === 'my' ? 'en-GB' : 'en-US', {month:'long', year:'numeric'});
+    document.getElementById('otMonthlyHint').textContent = (currentLang() === 'my' ? 'ရက်စွဲအပိုင်းအခြား — ' : 'Period — ') + monthLabel;
+
+    const approvedThisMonth = rows.filter(o => o.status === 'approved' && o.work_date.slice(0,7) === ym);
+    const byEmp = {};
+    approvedThisMonth.forEach(o => { byEmp[o.full_name] = byEmp[o.full_name] || {name: o.full_name, hours: 0}; byEmp[o.full_name].hours += Number(o.hours); });
+    const empIds = Object.keys(byEmp);
+    document.querySelector('#otMonthlyTable tbody').innerHTML = empIds.length ? empIds.map(id => {
+      const hours = byEmp[id].hours, pay = hours * settings.ot_pay_rate;
+      return `<tr><td>${byEmp[id].name}</td><td class="mono">${hours.toFixed(1)}</td><td class="mono">${fmtMoney(settings.ot_pay_rate)}</td><td class="mono">${fmtMoney(pay)}</td></tr>`;
+    }).join('') : `<tr><td colspan="4" style="color:var(--slate);">${t('emptyOt')}</td></tr>`;
+  } catch(e){ console.error('overtime', e); }
+}
+async function reviewOt(id, status){
+  try { await rpc('admin_review_ot', {p_code: adminActiveCompanyCode(), p_password: adminPassword(), p_ot_id: id, p_status: status}); renderAll(); }
+  catch(e){ alert(e.message); }
+}
+
+async function renderLeaves(code, pw){
+  const typeLabelMap = {annual:'Annual', casual:'Casual', sick:'Sick', unpaid:'Unpaid', other:'Other'};
+  try {
+    const rows = await rpc('admin_list_leaves', {p_code: code, p_password: pw});
+    document.querySelector('#leaveTable tbody').innerHTML = (rows && rows.length) ? rows.map(l => `
+      <tr><td>${l.full_name}</td><td>${typeLabelMap[l.leave_type]}</td><td class="mono">${l.start_date} → ${l.end_date}</td>
+        <td>${l.reason || '—'}</td><td><span class="badge ${l.status}">${l.status}</span></td>
+        <td>${l.status === 'pending' ? `<div class="actions">
+          <button class="btn small approve" onclick="reviewLeave(${l.id}, 'approved')">${t('approveBtn')}</button>
+          <button class="btn small reject" onclick="reviewLeave(${l.id}, 'rejected')">${t('rejectBtn')}</button></div>` : '—'}</td></tr>`).join('')
+      : `<tr><td colspan="6" style="color:var(--slate);">${t('emptyLeaves')}</td></tr>`;
+  } catch(e){ console.error('leaves', e); }
+}
+async function reviewLeave(id, status){
+  try { await rpc('admin_review_leave', {p_code: adminActiveCompanyCode(), p_password: adminPassword(), p_leave_id: id, p_status: status}); renderAll(); }
+  catch(e){ alert(e.message); }
+}
+
+async function renderBalances(code, pw){
+  try {
+    const rows = await rpc('admin_leave_balances', {p_code: code, p_password: pw});
+    const byName = {};
+    rows.forEach(r => { byName[r.full_name] = byName[r.full_name] || {}; byName[r.full_name][r.leave_type] = `${r.used}/${r.quota}${r.used >= r.quota ? ' ⛔' : ''}`; });
+    const types = ['annual','casual','sick','unpaid','other'];
+    const names = Object.keys(byName);
+    document.querySelector('#balanceTable tbody').innerHTML = names.length ? names.map(name => `
+      <tr><td>${name}</td>${types.map(ty => `<td class="mono">${byName[name][ty] || '—'}</td>`).join('')}</tr>`).join('')
+      : `<tr><td colspan="6" style="color:var(--slate);">${t('emptyEmp')}</td></tr>`;
+  } catch(e){ console.error('balances', e); }
+}
+
+async function renderAnnouncements(code, pw){
+  try {
+    const list = await rpc('list_announcements', {p_code: code});
+    document.getElementById('adminAnnList').innerHTML = (list && list.length) ? list.map(a => `
+      <li style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+        <span>${a.message}<div class="meta">${new Date(a.posted_at).toLocaleString(currentLang() === 'my' ? 'en-GB' : 'en-US')}</div></span>
+        <button class="btn small ghost" onclick="deleteAnnouncement(${a.id})">${t('deleteBtn')}</button>
+      </li>`).join('') : `<li style="border-left-color:var(--line); color:var(--slate);">${t('emptyAnn')}</li>`;
+  } catch(e){ console.error('announcements', e); }
+}
+document.getElementById('postAnnBtn').addEventListener('click', async () => {
+  const message = document.getElementById('annMessage').value.trim();
+  if(!message) return;
+  try {
+    await rpc('admin_post_announcement', {p_code: adminActiveCompanyCode(), p_password: adminPassword(), p_message: message});
+    document.getElementById('annMessage').value = '';
+    renderAll();
+  } catch(e){ alert(e.message); }
+});
+async function deleteAnnouncement(id){
+  try { await rpc('admin_delete_announcement', {p_code: adminActiveCompanyCode(), p_password: adminPassword(), p_announcement_id: id}); renderAll(); }
+  catch(e){ alert(e.message); }
+}
+
+async function renderHealthAllowanceAdmin(code, pw){
+  try {
+    const rows = await rpc('admin_list_health_allowance', {p_code: code, p_password: pw});
+    document.querySelector('#haTable tbody').innerHTML = (rows && rows.length) ? rows.map(h => `
+      <tr><td>${h.full_name}</td><td>${h.request_date}</td><td>${h.description}</td>
+        <td class="mono">${h.amount ? fmtMoney(h.amount) : '—'}</td>
+        <td><a href="${h.photo_url}" target="_blank" rel="noopener">${t('viewPhotoLink')}</a></td>
+        <td><span class="badge ${h.status}">${h.status}</span></td>
+        <td>${h.status === 'pending' ? `<div class="actions">
+          <button class="btn small approve" onclick="reviewHa(${h.id}, 'approved')">${t('approveBtn')}</button>
+          <button class="btn small reject" onclick="reviewHa(${h.id}, 'rejected')">${t('rejectBtn')}</button></div>` : '—'}</td></tr>`).join('')
+      : `<tr><td colspan="7" style="color:var(--slate);">${t('haEmpty')}</td></tr>`;
+  } catch(e){ console.error('health allowance', e); }
+}
+async function reviewHa(id, status){
+  try { await rpc('admin_review_health_allowance', {p_code: adminActiveCompanyCode(), p_password: adminPassword(), p_id: id, p_status: status}); renderAll(); }
+  catch(e){ alert(e.message); }
+}
+
+async function renderAll(){
+  if(document.getElementById('adminSection').classList.contains('hidden')) return;
+  if(document.getElementById('appShell').classList.contains('hidden')) return;
+  const code = adminActiveCompanyCode(), pw = adminPassword();
+  if(!code || !pw) return;
+  await Promise.all([
+    renderDashboard(code, pw), renderAttendance(code, pw), renderEmployees(code, pw), renderPositions(code, pw),
+    loadSettingsForm(code, pw), loadQuotaForm(code, pw), renderLogs(code, pw), renderOvertime(code, pw),
+    renderLeaves(code, pw), renderBalances(code, pw), renderAnnouncements(code, pw), renderHealthAllowanceAdmin(code, pw)
+  ]);
+}
+
+/* --- Boot --- */
+(async function boot(){
+  applyLanguage(currentLang());
+
+  if(activeCompanyCode()){
+    try {
+      const rows = await rpc('get_company_info', {p_code: activeCompanyCode()});
+      if(rows && rows.length){ localStorage.setItem('hr_active_company_name', rows[0].company_name); await enterCompany(); }
+      else { showCompanyGate(); }
+    } catch(e){ showCompanyGate(); }
+  } else {
+    showCompanyGate();
+  }
+
+  if(adminActiveCompanyCode() && adminPassword()){
+    try {
+      const rows = await rpc('admin_login', {p_code: adminActiveCompanyCode(), p_password: adminPassword()});
+      if(rows && rows.length){ await enterAdmin(); }
+    } catch(e){ /* stale session — leave the gate showing */ }
+  }
+})();
+
+setInterval(() => { if(!document.getElementById('adminSection').classList.contains('hidden')) renderAll(); }, 8000);
+setInterval(() => {
+  const mainAppEl = document.getElementById('mainApp');
+  if(mainAppEl && !mainAppEl.classList.contains('hidden')) refreshAnnouncements();
+}, 8000);
+</script>
+</body>
+</html>
